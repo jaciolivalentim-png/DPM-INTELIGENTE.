@@ -67,10 +67,16 @@ if len(SECRET) < 32:
         "menor que 32 caracteres."
     )
 
+
+if not ADMIN_PASSWORD:
+    raise RuntimeError(
+        "ERRO: DPM_ADMIN_PASSWORD nao chegou ao Python."
+    )
+
 if len(ADMIN_PASSWORD) < 12:
     raise RuntimeError(
-        "ERRO: DPM_ADMIN_PASSWORD ausente ou "
-        "menor que 12 caracteres."
+        "ERRO: DPM_ADMIN_PASSWORD foi recebida, "
+        "mas tem menos de 12 caracteres."
     )
 
 if not ADMIN_USER:
