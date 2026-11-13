@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>DPM Inteligente | Perícia Médica</title><link rel="stylesheet" href="style.css">
+</head><body><div class="app">
+<aside class="sidebar">
+<div class="brand"><div class="brand-icon">SI</div><div><strong>DPM INTELIGENTE</strong><small>Divisão de Perícia Médica</small></div></div>
+<div class="menu-label">MENU PRINCIPAL</div><nav>
+<button class="nav-item active" data-page="dashboard">⌂ <span>Painel inicial</span></button>
+<button class="nav-item" data-page="analise">▤ <span>Analisar protocolo</span></button>
+<button class="nav-item" data-page="historico">◷ <span>Histórico</span></button>
+<button class="nav-item" data-page="modelos">▧ <span>Modelos de despacho</span></button>
+<button class="nav-item" data-page="normas">§ <span>Base normativa</span></button></nav>
+<div class="menu-label">ADMINISTRAÇÃO</div><nav>
+<button class="nav-item" data-page="equipe">♙ <span>Equipe</span></button>
+<button class="nav-item" data-page="auditoria">◉ <span>Auditoria</span></button></nav>
+<div class="sidebar-footer"><span class="status-dot"></span> Ambiente de desenvolvimento<small>Versão 2.0.0</small></div>
+</aside>
+<main class="main"><header class="topbar"><div><strong>Divisão de Perícia Médica</strong><small>DPM | Governo do Paraná</small></div><div class="user-area"><div class="avatar">DP</div><div><strong id="loggedUser">Usuário autenticado</strong><small>Ambiente de teste</small></div><button id="logoutButton" type="button" class="primary">Sair</button></div></header>
+<div class="content">
+<section id="dashboard" class="page active"><div class="page-heading"><div><h1>Painel administrativo</h1><p>Apoio à análise de protocolos da Divisão de Perícia Médica.</p></div><button class="primary" onclick="navigate('analise')">+ Nova análise</button></div>
+<div class="stats"><div class="stat-card"><span>Protocolos analisados</span><strong id="totalAnalises">0</strong><small>Registros desta sessão</small></div><div class="stat-card"><span>Documentos analisados</span><strong id="totalDocumentos">0</strong><small>PDFs processados</small></div><div class="stat-card"><span>Relatórios gerados</span><strong id="totalRelatorios">0</strong><small>Análises concluídas</small></div><div class="stat-card"><span>Módulos disponíveis</span><strong>6</strong><small>Áreas especializadas</small></div></div>
+<div class="panel"><h2>Áreas de atuação</h2><div class="module-grid">
+<button class="module" onclick="selectArea('Perícia médica')"><span>⚕</span><strong>Perícia médica</strong><small>Análise administrativa</small></button>
+<button class="module" onclick="selectArea('Licença médica')"><span>◷</span><strong>Licenças médicas</strong><small>Solicitações e prazos</small></button>
+<button class="module" onclick="selectArea('Reconsideração de análise pericial')"><span>↻</span><strong>Reconsideração</strong><small>Revisão de análises</small></button>
+<button class="module" onclick="selectArea('Aposentadoria')"><span>▤</span><strong>Aposentadorias</strong><small>Instrução processual</small></button>
+<button class="module" onclick="selectArea('Carga horária')"><span>◴</span><strong>Carga horária</strong><small>Análise de solicitações</small></button>
+<button class="module" onclick="selectArea('Outros assuntos')"><span>▧</span><strong>Outros assuntos</strong><small>Demandas administrativas</small></button>
+</div></div><div class="notice"><strong>Ambiente de desenvolvimento:</strong> utilize exclusivamente documentos fictícios ou anonimizados.</div></section>
+
+<section id="analise" class="page"><div class="page-heading"><div><h1>Nova análise processual</h1><p>Envie um PDF ou arquivo ZIP para análise documental.</p></div></div>
+<div class="panel"><h2>Identificação do protocolo</h2>
+<label for="numero">Número do e-Protocolo</label><input id="numero" placeholder="Número do protocolo">
+<label for="assunto">Área de análise</label><select id="assunto"><option value="">Selecione o assunto</option><option>Perícia médica</option><option>Licença médica</option><option>Pedido de licença fora do prazo</option><option>Reconsideração de análise pericial</option><option>Aposentadoria</option><option>Carga horária</option><option>Outros assuntos</option></select>
+<label for="observacoes">Observações do analista</label><textarea id="observacoes" placeholder="Informações adicionais sobre o protocolo..."></textarea></div>
+<div class="panel"><h2>Importação de documentos</h2><p class="muted">Selecione um PDF ou um arquivo ZIP contendo PDFs.</p>
+<div class="drop-area" id="dropArea"><div class="upload-icon">⇧</div><strong>Selecione ou arraste seu arquivo</strong><p>Formatos aceitos: PDF ou ZIP contendo documentos PDF.</p><input type="file" id="protocolFile" accept=".pdf,.zip,application/pdf,application/zip"><div id="fileInfo">Nenhum arquivo selecionado.</div></div>
+<div class="notice warning">A análise é automatizada e possui caráter de apoio. Revise o resultado antes de utilizar qualquer informação em procedimento oficial.</div>
+<button class="primary" id="analyzeButton">Analisar protocolo</button><p id="feedback" role="status"></p></div>
+<div id="resultPanel" class="panel hidden"><h2>Resultado da análise</h2><div class="result-meta"><div><span>Documentos</span><strong id="resultDocuments">0</strong></div><div><span>Páginas</span><strong id="resultPages">0</strong></div></div>
+<div class="report-section"><h3>1. Resumo executivo do protocolo</h3><p class="report-help">Síntese dos trechos relevantes identificados no documento, sem repetição de assinaturas digitais.</p><p id="resultSummary"></p></div>
+<div class="report-section"><h3>2. Identificação documental</h3><dl class="report-details"><div><dt>Número do protocolo</dt><dd id="resultProtocol">—</dd></div><div><dt>Área de análise</dt><dd id="resultSubject">—</dd></div><div><dt>Arquivos analisados</dt><dd id="resultFiles">—</dd></div></dl></div>
+<div class="report-section"><h3>3. Informações identificadas</h3><ul id="resultTopics" class="report-list"></ul></div>
+<div class="report-section"><h3>4. Pontos que exigem atenção</h3><ul id="resultAttention" class="report-list attention-list"></ul></div>
+<div class="report-section"><h3>5. Fundamentação documental</h3><p class="report-help">Trechos extraídos automaticamente; confira o texto e a localização no documento original.</p><div id="resultEvidence" class="evidence-list"></div></div>
+<div class="report-section"><h3>6. Análise técnica preliminar</h3><p id="resultAnalysis"></p></div>
+<div class="report-section"><h3>7. Minuta de despacho para revisão</h3><div id="resultResponse" class="draft-box"></div></div>
+<div class="report-section"><h3>8. Limitações da análise</h3><p id="resultLimitations" class="report-help"></p></div>
+<button type="button" id="exportReport" class="primary-btn">Imprimir / salvar relatório em PDF</button></div></section>
+
+<section id="historico" class="page"><div class="page-heading"><div><h1>Histórico de análises</h1><p>Registros temporários da sessão atual.</p></div></div><div class="panel"><div id="historyList">Nenhuma análise registrada.</div></div></section>
+<section id="modelos" class="page"><div class="page-heading"><div><h1>Modelos de despacho</h1><p>Biblioteca de documentos administrativos.</p></div></div><div class="panel"><p>Espaço reservado para modelos oficiais aprovados pela Divisão.</p></div></section>
+<section id="normas" class="page"><div class="page-heading"><div><h1>Base normativa</h1><p>Legislação e orientações aplicáveis.</p></div></div><div class="panel"><p>Espaço reservado para legislação e orientações institucionais validadas.</p></div></section>
+<section id="equipe" class="page"><div class="page-heading"><div><h1>Gestão da equipe</h1><p>Estrutura de usuários e permissões.</p></div></div><div class="panel"><p>Módulo em preparação.</p></div></section>
+<section id="auditoria" class="page"><div class="page-heading"><div><h1>Auditoria</h1><p>Registro das operações do sistema.</p></div></div><div class="panel"><p>Módulo em preparação.</p></div></section>
+</div></main></div><script src="app.js"></script></body></html>
