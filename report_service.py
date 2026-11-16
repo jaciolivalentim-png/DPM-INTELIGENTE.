@@ -1,117 +1,132 @@
+"""Relatório auxiliar determinístico: não realiza decisão médica ou jurídica."""
+import re
+from collections import Counter
+
+STOP = set('para com uma por dos das que não nos nas este esta como mais entre sobre ser sua seu são também pela pelo aos ainda documento processo protocolo requerente conforme mediante tendo referente através'.split())
+PATTERNS = {
+    'Solicitação ou requerimento': r'\b(requer|solicita|pedido|requerimento|solicitação)\b',
+    'Prazo ou urgência': r'\b(prazo|urgente|urgência|vencimento|intimação)\b',
+    'Recurso ou contestação': r'\b(recurso|contestação|impugnação|reconsideração)\b',
+    'Documentação complementar': r'\b(anexo|anexado|documentação|complementação|juntada)\b',
+    'Avaliação pericial': r'\b(perícia|pericial|avaliação médica|laudo médico)\b',
+    'Decisão mencionada': r'\b(indeferimento|deferimento|decisão|despacho)\b',
+}
+
+def sentences(text):
+    clean = re.sub(r'\s+', ' ', text).strip()
+    return [s.strip() for s in re.split(r'(?<=[.!?])\s+|(?<=;)\s+', clean) if len(s.strip()) >= 25]
+
+def substantive_sentences(text, max_items=1200):
+    """Remove boilerplate sem transformar achados em fatos não comprovados."""
+    noise = re.compile(r'assinatura avançada|assinado digitalmente|autenticidade deste documento|'
+                       r'validarDocumento|https?://|código de verificação|'
+                       r'este documento foi assinado|documento assinado', re.I)
+    seen = set()
+    result = []
+    for sentence in sentences(text):
+        sentence = sentence.strip()
+        normalized = re.sub(r'\W+', ' ', sentence.lower()).strip()
+        if not normalized or normalized in seen or noise.search(sentence):
+            continue
+        seen.add(normalized)
+        if len(sentence) > 1500:
+            sentence = sentence[:1500] + '…'
+        result.append(sentence)
+        if len(result) >= max_items:
             break
     return result
 
 
-def _snippets(text, pattern, limit=3):
-    return [s[:260] for s in substantive_sentences(text) if re.search(pattern, s, re.I)][:limit]
-
-
-def _page_refs(text, pattern, limit=3):
-    # Só cita páginas se houver marcadores claros no texto extraído.
-    hits = []
-    chunks = re.split(r'(?=\[Página\s*\d+\]|\bPágina\s+\d+\s+de\s+\d+)', text or '', flags=re.I)
-    for chunk in chunks:
-        match = re.match(r'\s*(?:\[Página\s*(\d+)\]|Página\s+(\d+)\s+de\s+\d+)', chunk, re.I)
-        if match and re.search(pattern, chunk, re.I):
-            n = int(match.group(1) or match.group(2))
-            if n not in hits:
-                hits.append(n)
-    return hits[:limit]
-
-
-def summary(text, limit=1100):
+def summary(text, limit=6500):
+    """Síntese extrativa ampliada, sem IA e sem inventar conclusões."""
     chunks = substantive_sentences(text)
     if not chunks:
-        return 'Não foi possível extrair texto suficiente para resumir o expediente.'
+        return ('Não foi possível extrair texto suficiente. O PDF pode ser digitalizado '
+                'e exigir OCR antes de uma análise textual.')
     terms = Counter(w for w in re.findall(r'\b[a-zà-ÿ]{4,}\b', ' '.join(chunks).lower()) if w not in STOP)
-    ranked = []
-    for idx, s in enumerate(chunks):
-        words = re.findall(r'\b[a-zà-ÿ]{4,}\b', s.lower())
-        score = sum(min(terms[w], 6) for w in set(words)) / max(len(words), 8)
-        if re.search(r'\b(solicita|requer|objeto|finalidade|divergência|pendência|ausência|comprovante|assinatura|conclusão)\b', s, re.I):
+    scored = []
+    for idx, sentence in enumerate(chunks):
+        tokens = re.findall(r'\b[a-zà-ÿ]{4,}\b', sentence.lower())
+        score = sum(min(terms[t], 10) for t in set(tokens)) / max(len(tokens), 6)
+        if re.search(r'\b(solicita|requer|objeto|finalidade|conclusão|encaminha|avaliação|critérios|exames|documentos|recurso|prazo)\b', sentence, re.I):
             score += 3
-        ranked.append((score, idx))
-    chosen = sorted(idx for _, idx in sorted(ranked, reverse=True)[:5])
-    out = []
-    for i in chosen:
-        if sum(map(len, out)) + len(chunks[i]) > limit:
-            continue
-        out.append(chunks[i])
-    return '\n\n'.join(out) if out else chunks[0][:limit]
-
+        scored.append((score, idx))
+    selected = sorted(i for _, i in sorted(scored, reverse=True)[:min(18, len(scored))])
+    paragraphs = []
+    length = 0
+    for i in selected:
+        paragraph = chunks[i]
+        if length + len(paragraph) > limit and paragraphs:
+            break
+        paragraphs.append(paragraph)
+        length += len(paragraph) + 2
+    return '\n\n'.join(paragraphs) or chunks[0][:limit]
 
 def generate_report(protocol, subject, observations, data):
-    text = data.get('text', '') or ''
+    text = data.get('text', '')
     pages = data.get('pages', 0)
     documents = data.get('documents', [])
     findings = [label for label, pattern in PATTERNS.items() if re.search(pattern, text, re.I)]
     attention = list(data.get('ocr_warnings', []))
     if not text.strip():
-        attention.append('Texto insuficiente; verificar OCR e qualidade dos arquivos.')
+        attention.append('Texto não extraído; conferir se o arquivo exige OCR.')
     if any(d.get('error') for d in documents):
-        attention.append('Um ou mais arquivos apresentaram falha de leitura.')
+        attention.append('Um ou mais PDFs não puderam ser lidos integralmente.')
     if not protocol:
-        attention.append('Número do protocolo não informado.')
+        attention.append('Número do protocolo não informado no formulário.')
     if not subject:
-        attention.append('Assunto não informado.')
-
-    checks = [
-        ('Possível ausência de assinatura', r'\b(sem assinatura|assinatura ausente|não apresenta assinatura|assinatura não verificável|falta de assinatura)\b'),
-        ('Possível falta de comprovante de recebimento ou ciência', r'\b(sem comprovante|não demonstra recebimento|ausência de comprovante|não consta comprovante|sem confirmação de recebimento)\b'),
-        ('Divergência documental ou de datas relatada', r'\b(divergência|datas divergentes|inconsistência|contradição)\b'),
-        ('Prazo citado; conferir regra aplicável', PATTERNS['Prazo ou urgência']),
-    ]
-    detected = []
-    for label, pattern in checks:
-        matches = _snippets(text, pattern, 2)
-        if matches:
-            detected.append((label, matches, _page_refs(text, pattern)))
-            ref = f" (páginas {', '.join(map(str, _page_refs(text, pattern)))})" if _page_refs(text, pattern) else ''
-            attention.append(label + ref + '; confirmar no documento original.')
+        attention.append('Assunto não informado no formulário.')
+    if re.search(PATTERNS['Prazo ou urgência'], text, re.I):
+        attention.append('Há menção a prazo ou urgência; verificar datas e condições no documento original.')
+    if re.search(PATTERNS['Recurso ou contestação'], text, re.I):
+        attention.append('Há menção a recurso/contestação; verificar tramitação e competência.')
     if not attention:
-        attention.append('Nenhuma pendência objetiva detectada; isso não comprova regularidade documental.')
+        attention.append('Nenhuma pendência objetiva foi detectada pelas regras disponíveis; revisão humana permanece necessária.')
     evidence = []
+    noise_evidence = re.compile(r'assinatura avançada|autenticidade deste documento|validarDocumento|https?://', re.I)
     for label, pattern in PATTERNS.items():
-        matches = _snippets(text, pattern, 1)
+        matches = [s for s in sentences(text) if re.search(pattern, s, re.I) and not noise_evidence.search(s)]
         if matches:
-            evidence.append({'topic': label, 'excerpt': matches[0]})
-
-    doc_names = ', '.join(d.get('name', 'sem nome') for d in documents[:12])
-    detail = [
+            evidence.append({'topic': label, 'excerpt': matches[0][:320]})
+    doc_names = ', '.join(d.get('name', 'arquivo sem nome') for d in documents[:12])
+    detail_lines = [
         '1. IDENTIFICAÇÃO E ABRANGÊNCIA',
-        f'Protocolo: {protocol or "não informado"}. Assunto informado: {subject or "não informado"}.',
-        f'Arquivos recebidos: {len(documents)}; páginas: {pages}. Nomes: {doc_names or "não informado"}.',
-        '', '2. SÍNTESE DOCUMENTAL', summary(text, 950),
-        '', '3. PENDÊNCIAS E INCONSISTÊNCIAS PARA CONFERÊNCIA',
+        f'Foram recebidos {len(documents)} documento(s), totalizando {pages} página(s). Arquivos: {doc_names or "nenhum"}.',
+        f'Protocolo informado: {protocol or "não informado"}. Área de análise: {subject or "não informada"}.',
+        '', '2. CONTEÚDO DOCUMENTAL OBSERVADO',
+        ('O texto extraído apresenta referências aos seguintes temas: ' + '; '.join(findings) + '.') if findings else
+        'Não foi possível classificar temas específicos com as regras atuais.',
+        'A classificação indica apenas a ocorrência de expressões no material; não confirma a existência de pedido, prazo vigente, direito ou obrigação.',
+        '', '3. PONTOS PARA CONFERÊNCIA',
     ]
-    detail.extend('- ' + a for a in attention)
-    detail.extend(['', '4. TRECHOS DE APOIO (NÃO CONSTITUEM PROVA DE AUTENTICIDADE)'])
-    for label, snippets, refs in detected[:8]:
-        detail.append(f'- {label}' + (f" [páginas {', '.join(map(str, refs))}]" if refs else '') + ': ' + snippets[0])
-    if not detected:
-        detail.append('Não foram identificados trechos suficientes para apontamentos específicos.')
-    detail.extend(['', '5. ENCAMINHAMENTO PRELIMINAR',
-        'Conferir documentos originais e anexos, verificar datas e assinaturas, registrar lacunas comprovadas e encaminhar à unidade responsável. Não inferir prazos legais apenas da menção a urgência.',
-        'A análise é auxiliar, baseada em regras locais, e exige revisão e autorização humana.'])
-    draft_lines = [
-        f'MINUTA PARA REVISÃO — Protocolo {protocol or "[informar]"}',
-        f'Assunto: {subject or "[conferir assunto]"}', '',
-        'Considerando os documentos apresentados, encaminhe-se o expediente para conferência documental, sem antecipação de decisão de mérito.',
-    ]
-    if detected:
-        draft_lines.append('Solicita-se verificar especificamente: ' + '; '.join(label.lower() for label, _, _ in detected[:5]) + '.')
-    if data.get('ocr_warnings'):
-        draft_lines.append('Solicita-se também conferência manual das páginas com alerta de OCR.')
-    draft_lines.extend(['Caso confirmadas as pendências, registre-se a necessidade de complementação pelos canais institucionais.',
-                        'Esta minuta não estabelece direito, prazo legal, conclusão pericial ou decisão. Revisão e aprovação obrigatórias.'])
+    detail_lines.extend(f'- {point}' for point in attention)
+    detail_lines.extend(['', '4. REFERÊNCIAS EXTRAÍDAS DO DOCUMENTO'])
+    if evidence:
+        for item in evidence[:8]:
+            detail_lines.append(f'- {item["topic"]}: {item["excerpt"]}')
+    else:
+        detail_lines.append('Não foram localizados trechos de referência suficientes para esta seção.')
+    detail_lines.extend(['', '5. AVALIAÇÃO PRELIMINAR E PROVIDÊNCIAS',
+        'Os registros acima foram obtidos por extração de texto e regras automáticas. Devem ser confrontados com a íntegra dos documentos, sua ordem, a autenticidade e as normas aplicáveis antes de qualquer providência administrativa.',
+        'A análise não substitui a avaliação de profissional habilitado e não permite, isoladamente, conclusão médica, pericial ou jurídica.'])
+    preliminary = '\n'.join(detail_lines)
+    draft = (f'MINUTA PARA REVISÃO — Protocolo: {protocol or "[informar]"}\n'
+             f'Assunto: {subject or "[informar]"}\n\n'
+             'Considerando a documentação apresentada, encaminhe-se o expediente à unidade competente '
+             'para conferência da integridade documental, identificação do pedido e avaliação das '
+             'providências cabíveis, observadas as normas efetivamente aplicáveis ao caso.\n\n'
+             'Registrem-se eventuais pendências e, se necessário, solicite-se complementação documental '
+             'pelos canais institucionais.\n\n'
+             'Esta minuta não representa decisão, conclusão pericial ou fundamentação normativa validada. '
+             'Exige revisão e aprovação por agente autorizado.')
     return {
         'protocol': protocol, 'subject': subject, 'observations': observations,
         'documents': documents, 'total_documents': len(documents), 'total_pages': pages,
-        'summary': summary(text), 'attention_points': attention,
-        'identified_topics': findings, 'evidence': evidence[:8],
-        'preliminary_analysis': '\n'.join(detail),
-        'suggested_response': '\n\n'.join(draft_lines),
-        'limitations': ('Análise local baseada em regras, sem IA generativa e sem custos de API. '
-                        'Trechos OCR podem estar incompletos. Não valida autenticidade, prazos legais, '
-                        'direitos ou decisões e exige revisão humana.'),
+        'summary': summary(text),
+        'attention_points': attention, 'identified_topics': findings,
+        'evidence': evidence[:8], 'preliminary_analysis': preliminary,
+        'suggested_response': draft,
+        'limitations': ('Análise textual por regras, sem IA generativa. OCR local é utilizado em imagens e PDFs; '
+                        'o reconhecimento pode ser parcial ou impreciso, conforme os limites e a qualidade do arquivo. '
+                        'Não verifica autenticidade, não consulta legislação e não substitui revisão humana.'),
     }
