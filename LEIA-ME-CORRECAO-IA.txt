@@ -1,0 +1,10 @@
+DPM INTELIGENTE - CORREÇÃO DA INTEGRAÇÃO OPENAI
+
+1. Envie os arquivos desta pasta para a raiz do repositório no GitHub.
+2. No Render, configure DPM_AI_ENABLED=true, DPM_OPENAI_MODEL=gpt-4.1-mini e OPENAI_API_KEY (secreta).
+3. Aguarde o deploy e teste somente com protocolo fictício/anonimizado.
+4. No relatório, consulte a seção Limitações: STATUS DA IA.
+5. No Render Logs, procure DPM_AI_REQUEST, DPM_AI_SUCCESS, DPM_AI_HTTP_ERROR ou DPM_AI_ERROR.
+   HTTP 401 = chave inválida; 403 = acesso negado; 429 = limite/cota; 400 = parâmetros ou modelo inválidos.
+
+OBSERVAÇÕES: A API não foi chamada durante a preparação deste ZIP. Os documentos reais exigem revisão de privacidade/LGPD antes do envio à API.
