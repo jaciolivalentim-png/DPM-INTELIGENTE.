@@ -7,7 +7,7 @@ import logging
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 MAX_PIXELS = 8_000_000
-OCR_TIMEOUT = int(os.environ.get('DPM_OCR_TIMEOUT', '90'))
+OCR_TIMEOUT = int(os.environ.get('DPM_OCR_TIMEOUT', '180'))
 
 
 def recognize_image(image):
