@@ -73,3 +73,5 @@
   .content { background: transparent; }
 }
 @media print { .main { background: #fff !important; background-image: none !important; } }
+.timeline-scroll{overflow-x:auto;margin:12px 0}.timeline-table{width:100%;border-collapse:collapse;font-size:13px;background:#fff}.timeline-table th,.timeline-table td{padding:10px 12px;text-align:left;border:1px solid #dce5ef}.timeline-table th{background:#edf4fb;color:#142b46}.timeline-table tr:nth-child(even){background:#f7fafc}#proceduralDelay,#technicalConclusion{line-height:1.6;font-weight:600}#preexistingNotice{color:#7b520c}#proceduralSection ul{padding-left:22px;line-height:1.6}#proceduralSection[hidden]{display:none!important}@media print{.timeline-scroll{overflow:visible}.timeline-table{break-inside:avoid}}
+
